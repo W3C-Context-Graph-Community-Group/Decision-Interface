@@ -6,138 +6,101 @@
 
 ---
 
+## Background
+
+> This section is shared across all Context Graphs Community Group committees. For the standalone version, see [Context Graphs: Why This Exists](./INTRO.md).
+
+### The scope boundary
+
+In 1948, Shannon gave us a formal theory of communication. It is one of the most successful theories in the history of science. His model is complete, elegant, and proven: given a shared codebook — a mapping between symbols and their referents — he tells you everything you need to know about transmitting information reliably.
+
+Every major framework the industry builds on inherits this foundation. Expected utility theory, Bayesian inference, dynamic programming, active inference, Decision Intelligence — each presupposes that the meaning of inputs is shared between the system that produced the data and the model that consumes it. Shannon built this into the foundation. It is not a caveat in his theory. It is an axiom.
+
+Shannon is correct. We are not challenging his work. We are identifying where its assumptions stop holding.
+
+The entire industry operates in the regime where Shannon's assumption doesn't hold — open systems, multiple codebooks, no single authority — and has been using closed-system instruments to certify correctness in an open-system world. The instruments report success because they can't see the thing that's failing. That's not a flaw in the instruments. It's a scope mismatch between the instrument and the environment.
+
+### A simple example
+
+A system in Singapore sends a date field to a system in London:
+
+```
+time: 03/01/2026
+```
+
+Shannon's channel delivers it perfectly — zero bit error rate, zero conditional entropy, maximal mutual information. The receiver has the string exactly as the sender sent it.
+
+But is this March 1st or January 3rd?
+
+The sender uses MM/DD/YYYY. The receiver uses DD/MM/YYYY. For any day from the 1st through the 12th — roughly 40% of all dates in a year — the month and day positions are interchangeable. Both sides parse a valid date. Both proceed with confidence. One of them is wrong. Shannon reports zero uncertainty. The boundary carries a bit of uncertainty that no standard instrument detects.
+
+Now add a second layer: the sender defines "time" as the moment the order was *placed*. The receiver defines "time" as the moment the order was *received*. Same label, different events. That's another bit — meaning uncertainty — also invisible to Shannon, also invisible to every downstream framework.
+
+And a third: the sender is in Singapore (UTC+8), the producing system is hosted in New York (UTC−5), and the receiver is in London (UTC+0). Three reference frames, three possible calendar dates, no shared one. That context was never surfaced.
+
+One field. Three bits of boundary uncertainty. Shannon reports zero. Every system reports success. Every decision model downstream receives a clean input and makes a confident decision — on a value that is structurally ambiguous, semantically misaligned, and contextually ungrounded.
+
+### Why agents make it urgent
+
+Humans at system boundaries have always performed an informal, undocumented version of coherence checking. They ask colleagues what a field means. They verify timezone assumptions. They pick up the phone. This is slow, fragile, and dependent on institutional memory that leaves when people leave — but it works, approximately, because humans recognize when something feels wrong and know how to ask.
+
+Agents skip this entirely. They infer and proceed. The more capable the agent, the more convincingly it proceeds with a wrong interpretation. An agent crossing ten boundaries in a single query — ten tools, ten APIs, ten systems — has no mechanism for detecting that the meaning of a field shifted at hop three and every downstream decision is now grounded in a misinterpretation. If the interpretation flipped between hops — March 1st at one boundary, January 3rd at the next — the error propagates into every downstream decision without a trace.
+
+The problem compounds. Each unmeasured boundary multiplies the possible misalignment states — five boundaries in a routine pipeline produce over 32,000 configurations, all invisible to standard instruments. The gap that decision theory always carried is now operationally exposed at machine speed, across organizational boundaries, with no human in the loop to catch the silent failure.
+
+This is not a data quality problem. The data is correct. It is not a schema error. The schema validated. It is a structural property of boundaries between systems that operate under different assumptions — and it is the default condition whenever independently designed systems interact.
+
+A natural response to the date example is: "just standardize on ISO 8601" or "enforce a single format in the schema." Inside a closed system — one design authority, one team, one governance structure — that works, and you should do it. The date format is a trivial problem when you control both sides of the boundary. The Context Graph is not built for that case. It is built for the case where you don't control the other side — where the system in Singapore was designed by a different team, under different conventions, and you have no authority to change it. You only discover the mismatch when data crosses the boundary. The protocol exists for the boundaries you don't own, connecting systems you didn't design, at runtime, when the only option is to detect the divergence and decide what to do about it.
+
+### Toward an information-theoretic view of Context
+
+The missing quantity is **context**: the information required to resolve ambiguity in meaning, structure, or data at a specific boundary. Context is not metadata. It is not a linguistic property of terms. It is the information-theoretic gap between what a sender encodes and what a receiver requires in order to act correctly on that encoding. When a receiver doesn't know whether `03/01/2026` is MM/DD or DD/MM, the missing information is context. When a receiver doesn't know whether "time" means order placement or order receipt, the missing information is context. When a receiver doesn't know which timezone produced the value, the missing information is context.
+
+Context is structured uncertainty at a system boundary. Resolving it — surfacing what was missing, recording what was asked, documenting what was decided — is what collapses the ambiguity. Leaving it unresolved is what allows misalignment to compound silently across every downstream boundary.
+
+Coherence is the achieved state when systems at a boundary can resolve their own uncertainty about meaning, structure, and data while producing a shared record that every other node in the interaction can verify.
+
+The process of acquiring context and maintaining coherence requires decisions at every step — Act, Ask, or Halt. Those decisions need a standard interface, for both the inner loop (an agent at a boundary) and the outer loop (governance over the agent). That is what this specification defines.
+
+---
+
+### Committee Purpose: Decisions Under Unbounded, Unmeasured Uncertainty
+
+The Coherence Protocol can now measure a class of uncertainty that no known decision-theoretic framework currently quantifies — codebook misalignment at system boundaries. It produces an uncertainty vector: which facets are aligned, which are misaligned, which haven't been checked. Every major framework — expected utility, Bayesian inference, dynamic programming, active inference — inherits the assumption that this uncertainty is zero. Decision Intelligence, as the discipline that integrates these frameworks, inherits it too.
+
+The measurement exists. The open question is: **how should decision models consume boundary uncertainty and act on it?**
+
+A simple rule engine might say: "meaning mismatched, so I halt." A Bayesian model might say: "my posterior is split across three interpretations — I need to ask." A causal decision model might say: "I simulated downstream outcomes and the variance is unacceptable — halt." Each of these is a valid response to the same uncertainty vector. The Decision Interface must carry all of them without requiring all of them.
+
+That is this committee's problem — and it is wide open.
+
+---
+
 ## Responsibilities
 
-The Decision Interface specification defines the contract between a **coherence measurement** and any **decision model** that acts on it.
+The Coherence Protocol produces a structured uncertainty measurement at a boundary between systems. A decision model consumes that measurement and returns an action. The Decision Interface is the membrane between them.
 
-Upstream of this specification, the Coherence Protocol evaluates a system boundary and produces a structured uncertainty vector — a compact representation of what is known, what is misaligned, and what has not yet been determined about the data crossing that boundary. The Decision Interface specification defines what any decision model receives from that evaluation, what it must return, and what must be recorded so the decision is auditable and replayable.
+This committee defines the API contract for that membrane: what the Context Graph sends to a decision model, what the decision model sends back, and what must be recorded so the decision is auditable. OpenDI's CDM architecture is a natural starting vocabulary. The first question is whether existing OpenDI abstractions can consume an uncertainty vector and return a protocol action — or whether the interface requires extension.
 
-The specification is **neutral to decision framework**. Threshold rules, Bayesian inference, utility models, reinforcement learning, human judgment — any of these can sit behind the interface. The committee standardizes the envelope, not the reasoning.
+## Design Principles
 
----
+These principles constrain design choices throughout the specification.
 
-## The Problem in One Paragraph
+**Self-similarity.** The same interface shape at inner loop (agent) and outer loop (governance). Structure is invariant across levels. Only policy parameters change.
 
-When data crosses a boundary between two independently designed systems, three things can be misaligned: what the data **means**, how it is **structured**, and whether the **context** required to interpret it has been established. The Coherence Protocol measures these facets and expresses the result as a binary vector. But a measurement alone does not produce an action. Something must decide: given this uncertainty profile, do we **proceed**, **ask a clarifying question**, or **stop**? That decision — and the policy that governs it — is what this specification standardizes.
+**Factorization.** One interface shape serves all levels. The alternative — pairwise contracts per level per framework — is O(N²). This is O(N).
 
----
+**Gauge covariance.** The outer loop measures the inner loop using the same instrument the inner loop uses to measure boundaries. Audit trail is native. Composability is structural.
 
-## Two Loops, One Interface
+**Compression.** Self-similarity + factorization = no architectural redundancy. A team member who understands the interface at one level understands it at every level.
 
-The Decision Interface applies at two scales. Both consume the same uncertainty vector. Both return the same action vocabulary. The specification must serve both.
-
-### The Inner Loop: An Agent Making a Decision
-
-An AI agent retrieves a financial filing. The filing contains 27 tagged references to "revenue," each with a different calculation methodology. The agent selects one and builds a dashboard. No error is raised. The number is real. It may not be the number the analyst needed.
-
-In the inner loop, the Decision Interface sits between the coherence measurement (the filing's revenue field has unresolved meaning — 27 candidates, no selection criteria from the user) and the agent's next action. The interface delivers the uncertainty vector to whatever decision logic the agent uses. The decision logic returns one of three protocol actions:
-
-- **Act** — proceed with the selected interpretation.
-- **Ask** — surface the ambiguity to the user or to an upstream system.
-- **Halt** — the ambiguity is unresolvable within the current scope.
-
-The inner loop is where most boundary crossings happen: API calls, database joins, retrieval-augmented generation, tool use, multi-agent message passing. Each is a boundary. Each needs a decision.
-
-### The Outer Loop: A Decision About the Agent's Decision
-
-A compliance officer reviews the agent's dashboard before it reaches the portfolio team. The coherence measurement at this boundary is different: it evaluates whether the agent's resolution trace — the record of what it checked, what it found, and what it decided at each upstream boundary — meets the organization's policy for that use case.
-
-In the outer loop, the Decision Interface sits between a coherence measurement over a chain of prior decisions and a supervisory decision model. The uncertainty vector now includes not just the current boundary's state but the propagated state from upstream crossings. The decision logic may apply stricter thresholds, require human review for specific facet combinations, or enforce regulatory constraints.
-
-The outer loop is where governance, oversight, and organizational policy enter. It is also where humans most naturally participate — not by inspecting raw data, but by setting the policies that determine when agents must ask versus act, and reviewing the resolution traces that record what happened.
-
-### Why One Interface Serves Both
-
-The inner and outer loops differ in scope, in the decision models behind them, and in who or what is making the decision. They do not differ in interface shape. Both receive an uncertainty vector indexed by facet. Both return a protocol action. Both produce a resolution trace. The specification standardizes this shared surface. What varies — thresholds, policies, reasoning frameworks — is on the other side of the interface, where it belongs.
 
 ---
-
-## What the Specification will Define [OPEN]
-
-### Input Surface
-
-The decision model receives:
-
-| Input | Description |
-|---|---|
-| **Uncertainty vector** | A facet-indexed binary vector representing the coherence state at this boundary. Each facet (meaning, structure, data) contributes 0 (aligned) or 1 (misaligned). A context-completion bit indicates whether the prerequisite resolutions have been recorded. |
-| **Boundary metadata** | Identity of the systems on each side of the boundary, the field or claim under evaluation, and the timestamp of the evaluation. |
-| **Policy parameters** | Risk tolerance, required confidence thresholds, domain-specific rules, regulatory constraints, or any other parameters the decision model needs. These are supplied by the deploying organization, not by the protocol. |
-| **Resolution history** | For outer-loop evaluations: the resolution traces from upstream boundary crossings, expressing what was checked and decided at each prior hop. |
-
-### Output Surface
-
-The decision model returns:
-
-| Output | Description |
-|---|---|
-| **Protocol action** | Exactly one of: **Act**, **Ask**, or **Halt**. |
-| **Action rationale** | A structured record of why the action was selected — which conditions were evaluated, which thresholds applied, which facet states drove the decision. |
-| **Trace entry** | A resolution trace record conforming to the Resolution Trace Format, suitable for append to the boundary's Context Graph. |
-
-### What the Specification Does Not Prescribe
-
-- **How the decision model reasons internally.** A lookup table, a neural network, a human reviewing a dashboard — all are valid implementations if they consume the input surface and produce the output surface.
-- **What thresholds to use.** Risk tolerance is a policy choice, not a protocol choice. The specification defines where thresholds enter the interface. Organizations set their own values.
-- **Which decision framework is correct.** The committee's job is to ensure that any framework — deterministic rules, stochastic models, utility maximization, satisficing heuristics, human judgment — can plug into the same interface without loss of information or auditability.
-
----
-
-## Decision Model Classes
-
-The specification must accommodate at least the following classes of decision logic. These are not prescriptive categories — they illustrate the range the interface must support.
-
-**Deterministic.** If meaning mismatches, Halt. If context is incomplete, Ask. If all facets align, Act. Rule-based, fully auditable, no probabilistic reasoning. Appropriate for regulatory compliance, safety-critical systems, and environments where the cost of a wrong action far exceeds the cost of asking.
-
-**Threshold-based.** Act if the proportion of aligned facets across a set of fields exceeds a configured threshold. Ask if below threshold but above a halt floor. Halt otherwise. Simple to implement, tunable per use case, interpretable by non-technical stakeholders.
-
-**Probabilistic / Bayesian.** Maintain a posterior over possible interpretations given the uncertainty vector and prior observations. Act when the posterior concentrates sufficiently on a single interpretation. Ask when the expected information gain from a specific question exceeds a threshold. Halt when no available question can reduce uncertainty below the action threshold.
-
-**Utility-based.** Assign costs to acting on a wrong interpretation, to asking (delay, resource use), and to halting (missed opportunity, escalation). Select the action that minimizes expected cost given the uncertainty vector. Appropriate when different kinds of errors carry different consequences.
-
-**Human-in-the-loop.** Route the uncertainty vector and resolution history to a human decision-maker via a dashboard or notification. The human returns a protocol action. The specification treats human judgment as a valid decision model — the interface contract is the same.
-
----
-
-## Auditability and Replay
-
-Every decision that crosses the interface must produce a trace entry. The trace records the input surface (uncertainty vector, policy parameters, boundary metadata), the output surface (action, rationale), and the identity and version of the decision model that produced it. This enables:
-
-- **Post-hoc audit.** Given a decision outcome, reconstruct exactly what the decision model saw and why it chose the action it chose.
-- **Replay.** Given updated policy parameters or a different decision model, re-evaluate the same input surface and compare actions. This is how organizations test policy changes before deploying them.
-- **Propagation analysis.** Trace how a decision at one boundary influenced decisions at downstream boundaries, using the resolution history that flows through the outer loop.
-
----
-
-## Relationship to Other Committees
-
-| Committee | Relationship to Decision Interface |
-|---|---|
-| **Coherence Protocol** | Produces the uncertainty vector that the Decision Interface consumes. The two specs share the Act / Ask / Halt vocabulary and must agree on the structure of the uncertainty vector. |
-| **Syntax & Serialization** | Defines the concrete format (JSON, YAML, etc.) in which the input and output surfaces are expressed. The Decision Interface spec defines the logical contract; Syntax & Serialization defines how it is serialized on the wire. |
-| **Semantic Alignment** | Provides the meaning-layer infrastructure (OWL, RDF, SKOS) that populates the meaning facet of the uncertainty vector. The Decision Interface consumes this as input — it does not evaluate semantic alignment directly. |
-| **Applied Knowledge** | Bridges the specification to deployment. Validates that the interface contract is implementable in real systems and that the auditability requirements are practical. |
-| **Business & Industry** | Sources the use cases and risk-tolerance profiles that drive policy parameter design. Validates that the decision model classes cover real-world needs. |
-| **Agentic AI** | The primary consumer of the inner-loop interface. Validates that the spec supports the speed, scale, and autonomy requirements of agent-to-agent and agent-to-system boundary crossings. |
-
----
-
-## Getting Started
-
-If you are a decision intelligence practitioner, decision scientist, or builder of systems that make or govern automated decisions, here is how to engage:
-
-1. **Read the charter's Decision Interface section** for the committee's scope and authority within the Community Group.
-2. **Review the input and output surfaces above.** These are the core of the specification. If your decision framework can consume an uncertainty vector and return a protocol action with a trace, it fits.
-3. **Bring a use case.** The most valuable contributions are real boundary-crossing scenarios where the decision — Act, Ask, or Halt — is nontrivial. What made it hard? What information was missing? What would have helped?
-4. **Challenge the model classes.** If your decision framework does not fit the classes listed above, that is a signal the specification needs to expand. Tell us what is missing.
-
----
-
 ## Current Status
 
-**Phase:** Pre-draft. The committee is assembling and scoping the first deliverable.
+**Phase:** Pre-draft.
 
-**First deliverable:** A minimal Decision Interface specification defining the input surface, output surface, trace requirements, and at least two reference decision models (one deterministic, one probabilistic) with worked examples.
+**First deliverable:** Minimal Decision Interface API spec — input surface, output surface, trace requirements, and at least two reference decision models with worked examples.
 
 **Chair:** Dr. Lorien Pratt — [contact via Community Group channels]
 
@@ -147,6 +110,6 @@ If you are a decision intelligence practitioner, decision scientist, or builder 
 
 ## Links
 
+
 - [W3C Context Graphs Community Group](https://www.w3.org/community/context-graphs/)
-- [Coherence Protocol Paper (Draft)](./docs/liquid-coherence-draft.pdf)
 - [Community Group Charter](./CHARTER.md)
