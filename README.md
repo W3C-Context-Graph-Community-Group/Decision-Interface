@@ -8,7 +8,7 @@
 
 ## Background
 
-> This section is shared across all Context Graphs Community Group committees. For the standalone version, see [Context Graphs: Why This Exists](https://github.com/W3C-Context-Graph-Community-Group/Charter/blob/main/README.md)
+> This section is shared across all Context Graphs Community Group committees. For the standalone version, see [Context Graphs: Why This Exists](https://github.com/W3C-Context-Graph-Community-Group/Charter/blob/main/why_this_exists.md).
 
 ### The scope boundary
 
